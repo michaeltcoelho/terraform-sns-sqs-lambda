@@ -39,3 +39,28 @@ resource "aws_sqs_queue_policy" "sqs_queue_policy_for_sns_subscription" {
 }
 POLICY
 }
+
+resource "aws_sqs_queue_policy" "sqs_dead_letter_queue_policy_for_sns_subscription" {
+  queue_url = "${aws_sqs_queue.sqs_dead_letter_queue.id}"
+
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Id": "SNSSQSDeadLetterQueuePolicyID",
+  "Statement": [
+    {
+      "Sid": "SNSSQSDeadLetterQueuePolicySID",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "sqs:SendMessage",
+      "Resource": "${aws_sqs_queue.sqs_dead_letter_queue.arn}",
+      "Condition": {
+        "ArnEquals": {
+          "aws:SourceArn": "${var.sns_topic_arn}"
+        }
+      }
+    }
+  ]
+}
+POLICY
+}
