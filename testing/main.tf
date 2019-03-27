@@ -19,11 +19,11 @@ module "sqs" {
 module "lambda" {
   source = "../modules/lambda"
 
-  function_name = "terraform-lambda-function"
+  function_name = "hello-function"
   function_description = "Testing the execution of a simple function"
-  function_filename = "${path.module}/lambda_function.zip"
-  function_entrypoint = "main.lambda_handler"
-  function_runtime = "python3.7"
+  function_filename = "${path.module}/hello.zip"
+  function_entrypoint = "hello"
+  function_runtime = "go1.x"
   function_memory_size = 128
 
   sqs_event_source_enabled = true
