@@ -131,7 +131,7 @@ resource "aws_iam_role" "lambda_function_role" {
   assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
 }
 
-data "aws_iam_policy_document" "lambda_function_policy" {
+data "aws_iam_policy_document" "sqs_policy_document" {
   statement {
     sid       = "AllowSQSPermissions"
     effect    = "Allow"
@@ -144,6 +144,23 @@ data "aws_iam_policy_document" "lambda_function_policy" {
       "sqs:SendMessage",
     ]
   }
+}
+
+data "aws_iam_policy_document" "vpc_policy_document" {
+
+  statement {
+    sid       = "AllowAccessResourceInVPC"
+    effect    = "Allow"
+    resources = ["*"]
+    actions = [
+      "ec2:CreateNetworkInterface",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DeleteNetworkInterface",
+    ]
+  }
+}
+
+data "aws_iam_policy_document" "execution_policy_document" {
 
   statement {
     sid       = "AllowInvokingLambdas"
@@ -168,25 +185,42 @@ data "aws_iam_policy_document" "lambda_function_policy" {
       "logs:PutLogEvents",
     ]
   }
-
-  statement {
-    sid       = "AllowAccessResourceInVPC"
-    effect    = "Allow"
-    resources = ["*"]
-    actions = [
-      "ec2:CreateNetworkInterface",
-      "ec2:DescribeNetworkInterfaces",
-      "ec2:DeleteNetworkInterface",
-    ]
-  }
 }
 
-resource "aws_iam_policy" "lambda_function_policy_streams" {
-  name = "${var.function_name}-policy"
-  policy = "${data.aws_iam_policy_document.lambda_function_policy.json}"
+resource "aws_iam_policy" "execution_policy" {
+  name = "${var.function_name}-execution-policy"
+  policy = "${data.aws_iam_policy_document.execution_policy_document.json}"
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_function_policy_streams" {
-  policy_arn = "${aws_iam_policy.lambda_function_policy_streams.arn}"
+resource "aws_iam_policy" "sqs_policy" {
+  count = "${var.sqs_event_source_enabled ? 1 : 0}"
+
+  name = "${var.function_name}-sqs-policy"
+  policy = "${data.aws_iam_policy_document.sqs_policy_document.json}"
+}
+
+resource "aws_iam_policy" "vpc_policy" {
+  count = "${var.vpc_config_enabled ? 1 : 0}"
+
+  name = "${var.function_name}-vpc-policy"
+  policy = "${data.aws_iam_policy_document.vpc_policy_document.json}"
+}
+
+resource "aws_iam_role_policy_attachment" "attach_execution_policy_to_lambda" {
+  policy_arn = "${aws_iam_policy.execution_policy.arn}"
+  role = "${aws_iam_role.lambda_function_role.name}"
+}
+
+resource "aws_iam_role_policy_attachment" "attach_sqs_policy_to_lambda" {
+  count = "${var.sqs_event_source_enabled ? 1 : 0}"
+
+  policy_arn = "${aws_iam_policy.sqs_policy.arn}"
+  role = "${aws_iam_role.lambda_function_role.name}"
+}
+
+resource "aws_iam_role_policy_attachment" "attach_vpc_policy_to_lambda" {
+  count = "${var.vpc_config_enabled ? 1 : 0}"
+
+  policy_arn = "${aws_iam_policy.vpc_policy.arn}"
   role = "${aws_iam_role.lambda_function_role.name}"
 }
